@@ -1,0 +1,76 @@
+.directions-form-container {
+  margin: 2rem 0;
+}
+
+.directions-form-container h2 {
+  text-align: center;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.directions-input {
+  width: 100%;
+  padding: 1rem;
+  font-size: 16px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.directions-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.directions-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.submit-button,
+.clear-button {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.submit-button {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.submit-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.clear-button {
+  background-color: #f44336;
+  color: white;
+}
+
+.clear-button:hover:not(:disabled) {
+  background-color: #da190b;
+}
+
+.clear-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
