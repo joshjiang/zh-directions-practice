@@ -1,7 +1,8 @@
 import React from 'react';
 import './Map.css';
+import PathAnimation from './PathAnimation';
 
-const Map = ({ buildings, startPos, endPos, direction }) => {
+const Map = ({ buildings, startPos, endPos, direction, tracedPath = [] }) => {
   const gridSize = 5;
 
   const getBuilding = (row, col) => {
@@ -39,7 +40,8 @@ const Map = ({ buildings, startPos, endPos, direction }) => {
   return (
     <div className="map-container">
       <h2>地图 (Map)</h2>
-      <div className="city-grid">
+      <div className="city-grid-wrapper">
+        <div className="city-grid">
         {Array.from({ length: gridSize }).map((_, buildingRow) => (
           <React.Fragment key={buildingRow}>
             {/* Row of buildings */}
@@ -118,6 +120,8 @@ const Map = ({ buildings, startPos, endPos, direction }) => {
             )}
           </React.Fragment>
         ))}
+        </div>
+        <PathAnimation path={tracedPath} gridSize={gridSize} />
       </div>
       <div className="legend">
         <div className="legend-item">

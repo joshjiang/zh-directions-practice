@@ -11,9 +11,13 @@ function App() {
   const [startPos, setStartPos] = useState({ row: 0, col: 0 });
   const [endPos, setEndPos] = useState({ row: 0, col: 0 });
   const [direction, setDirection] = useState('north');
-  const [score, setScore] = useState(null);
+  const [pathScore, setPathScore] = useState(null);
+  const [languageScore, setLanguageScore] = useState(null);
   const [feedback, setFeedback] = useState(null);
+  const [translation, setTranslation] = useState(null);
+  const [nativeExample, setNativeExample] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [tracedPath, setTracedPath] = useState([]);
 
   // Initialize the first round
   useEffect(() => {
@@ -28,8 +32,12 @@ function App() {
     setStartPos(positions.start);
     setEndPos(positions.end);
     setDirection(positions.direction);
-    setScore(null);
+    setPathScore(null);
+    setLanguageScore(null);
     setFeedback(null);
+    setTranslation(null);
+    setNativeExample(null);
+    setTracedPath([]);
   };
 
   const handleSubmitDirections = async (directions) => {
@@ -43,11 +51,16 @@ function App() {
         direction
       });
 
-      setScore(result.score);
+      setPathScore(result.pathScore || 0);
+      setLanguageScore(result.languageScore || 0);
       setFeedback(result.feedback);
+      setTranslation(result.translation || '');
+      setNativeExample(result.nativeExample || '');
+      setTracedPath(result.path || []);
     } catch (error) {
       console.error('Error submitting directions:', error);
-      setScore(0);
+      setPathScore(0);
+      setLanguageScore(0);
       setFeedback(`<p>Error: ${error.message}</p>`);
     } finally {
       setIsLoading(false);
@@ -68,21 +81,27 @@ function App() {
       <main className="app-main">
         {buildings.length > 0 && (
           <>
-            <Map
-              buildings={buildings}
-              startPos={startPos}
-              endPos={endPos}
-              direction={direction}
-            />
+            <div className="map-form-container">
+              <Map
+                buildings={buildings}
+                startPos={startPos}
+                endPos={endPos}
+                direction={direction}
+                tracedPath={tracedPath}
+              />
 
-            <DirectionsForm
-              onSubmit={handleSubmitDirections}
-              isLoading={isLoading}
-            />
+              <DirectionsForm
+                onSubmit={handleSubmitDirections}
+                isLoading={isLoading}
+              />
+            </div>
 
             <Results
-              score={score}
+              pathScore={pathScore}
+              languageScore={languageScore}
               feedback={feedback}
+              translation={translation}
+              nativeExample={nativeExample}
               onNextRound={handleNextRound}
             />
           </>

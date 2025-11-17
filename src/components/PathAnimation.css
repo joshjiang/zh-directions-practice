@@ -1,0 +1,26 @@
+.path-animation-overlay {
+  position: absolute;
+  top: 15px; /* Match the padding from city-grid */
+  left: 15px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.animated-person-icon,
+.animated-direction-arrow {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  transition: transform 0.5s ease-in-out;
+}
+
+.animated-person-icon {
+  animation: bounce 0.5s ease-in-out;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}

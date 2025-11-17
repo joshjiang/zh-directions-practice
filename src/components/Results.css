@@ -19,7 +19,24 @@
 .score-display {
   display: flex;
   justify-content: center;
+  gap: 3rem;
   margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.score-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.score-label {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  line-height: 1.4;
 }
 
 .score-circle {
@@ -33,6 +50,26 @@
   font-weight: bold;
   color: white;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.translation-section {
+  margin: 2rem 0;
+}
+
+.translation-section h3 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.translation-text {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #555;
+  font-style: italic;
 }
 
 .feedback-section {
@@ -76,6 +113,26 @@
   font-size: 14px;
   display: block;
   margin-top: 0.5rem;
+}
+
+.native-example-section {
+  margin: 2rem 0;
+}
+
+.native-example-section h3 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.native-example-text {
+  background-color: #e3f2fd;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 2px solid #2196F3;
+  font-size: 18px;
+  line-height: 1.6;
+  color: #1565c0;
+  font-weight: 500;
 }
 
 .next-button {

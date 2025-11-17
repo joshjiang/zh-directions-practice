@@ -36,6 +36,22 @@
   width: 100%;
 }
 
+.map-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .map-form-container {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+  }
+}
+
 .app-footer {
   margin-top: 2rem;
   padding-top: 1rem;
