@@ -11,6 +11,11 @@ const PORT = Number(process.env.PORT) || 3001;
 const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const REQUEST_TIMEOUT_MS = Number(process.env.GROQ_TIMEOUT_MS) || 45000;
+const MAX_TOKENS = Number(process.env.GROQ_MAX_TOKENS) || 2000;
+// Hybrid reasoning models (qwen3.x) think by default and blow the token budget
+// on a task this small. Set to 'none' to turn thinking off for those models;
+// leave unset for models like gpt-oss whose reasoning is the point.
+const REASONING_EFFORT = process.env.GROQ_REASONING_EFFORT || '';
 const MAX_DIRECTIONS_LENGTH = 2000;
 
 const GRID_SIZE = 5;
@@ -243,7 +248,8 @@ const postCompletion = (prompt, languageName, { jsonMode }) =>
       // Grading should be near-deterministic; high temperature mostly produces
       // inconsistent scores for identical answers.
       temperature: 0.2,
-      max_tokens: 2000,
+      max_tokens: MAX_TOKENS,
+      ...(REASONING_EFFORT ? { reasoning_effort: REASONING_EFFORT } : {}),
       ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
     }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -289,8 +295,15 @@ const callGroq = async (prompt, languageName) => {
     throw new Error('Groq API returned no message content.');
   }
 
-  // JSON mode should make this unnecessary, but strip code fences defensively.
-  const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  // Some hybrid reasoning models emit <think> blocks inline in content rather
+  // than in a separate field, which is not valid JSON. Strip those, then code
+  // fences, before parsing.
+  const cleaned = content
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/^[\s\S]*?<\/think>/i, '')
+    .replace(/```json\n?/g, '')
+    .replace(/```\n?/g, '')
+    .trim();
   try {
     return JSON.parse(cleaned);
   } catch {
@@ -360,7 +373,12 @@ app.post('/api/grade', async (req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, model: GROQ_MODEL, hasApiKey: Boolean(process.env.GROQ_API_KEY) });
+  res.json({
+    ok: true,
+    model: GROQ_MODEL,
+    reasoningEffort: REASONING_EFFORT || 'default',
+    hasApiKey: Boolean(process.env.GROQ_API_KEY),
+  });
 });
 
 app.listen(PORT, () => {

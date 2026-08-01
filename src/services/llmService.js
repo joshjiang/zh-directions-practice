@@ -37,8 +37,17 @@ export const gradeDirections = async (userDirections, context) => {
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.error || `Grading service returned ${response.status}.`);
+    if (data?.error) throw new Error(data.error);
+    // The dev proxy answers with an empty text/plain 500 when nothing is
+    // listening on the backend port, so a non-JSON body here almost always
+    // means the grading server is down rather than a real grading failure.
+    throw new Error(
+      `The grading service is not responding (HTTP ${response.status}). ` +
+        'Make sure the backend is running: npm run server.'
+    );
   }
+
+  if (!data) throw new Error('The grading service returned an unreadable response.');
 
   return data;
 };

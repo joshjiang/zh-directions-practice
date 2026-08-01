@@ -42,7 +42,7 @@ Add your [Groq API key](https://console.groq.com/keys) to `.env`:
 GROQ_API_KEY=your-groq-api-key-here
 ```
 
-Optional overrides: `GROQ_MODEL` (default `openai/gpt-oss-120b`), `GROQ_TIMEOUT_MS`, `PORT`.
+Optional overrides: `GROQ_MODEL` (default `openai/gpt-oss-120b`), `GROQ_REASONING_EFFORT`, `GROQ_MAX_TOKENS`, `GROQ_TIMEOUT_MS`, `PORT`.
 
 > **Note:** these are backend-only variables. Never prefix an API key with `VITE_` — Vite inlines `VITE_*` variables into the client bundle, where anyone can read them.
 
@@ -135,9 +135,17 @@ reasoning relative to a facing direction. On an 6-case benchmark of that skill:
 
 | Model | Correct left/right verdicts | Notes |
 | --- | --- | --- |
-| `openai/gpt-oss-120b` | 6/6 | Traces multi-step paths; example starts from the real position |
+| `openai/gpt-oss-120b` | 5-6/6 | Traces multi-step paths; example restates the real starting position |
 | `llama-3.3-70b-versatile` | 4/6 | Scored 0 on correct answers 2 of 3 times; path collapses to one point |
-| `qwen/qwen3.6-27b` | 0/6 | Returns malformed JSON on every call |
+| `qwen/qwen3.6-27b` (`reasoning_effort=none`) | 3/6 | Rubber stamp: scored 100 on every case, including every wrong answer |
+| `qwen/qwen3.6-27b` (thinking on) | 3/6 + 3 failures | Discriminates when it completes, but ~9.7s and unreliable JSON |
+
+Qwen writes the most idiomatic Chinese of the three, so it is tempting for this
+app. It is not usable as the grader: with thinking off it agrees with
+everything, and with thinking on it is slow and returns malformed JSON often
+enough to break rounds. Note it is a hybrid reasoning model that emits
+`<think>` blocks inline in `content`; the server strips those, and
+`GROQ_REASONING_EFFORT=none` turns thinking off entirely.
 
 Note the free tier is capped at **6,000 tokens/minute**, and one grading costs
 roughly 3,400 — about two submissions per minute before a 429. The server
