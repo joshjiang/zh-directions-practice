@@ -1,89 +1,117 @@
-# Chinese Directions Practice App (中文方向练习)
+# Directions Practice (中文方向练习 / 한국어 길찾기 연습)
 
-A React single-page application designed to help English speakers practice giving directions in Chinese using HSK3 level vocabulary.
+A React single-page app for practising how to give directions in **Chinese (HSK3)** or **Korean (TOPIK 3)**. You are dropped somewhere on a randomly generated city map, facing a random direction, and have to write directions to the destination. An LLM grades the result and traces your route on the map.
 
 ## Features
 
-- **Interactive 5x5 Map Grid**: Displays randomly generated building locations with Chinese labels (HSK3 level)
-- **Visual Start/End Markers**: Shows your starting position and destination on the map
-- **Chinese Text Input**: Write directions in Chinese to get from point A to point B
-- **LLM-Powered Grading**: Submit your directions to get scored and receive detailed feedback
-- **Error Highlighting**: See your mistakes highlighted with corrections and explanations
-- **Randomized Practice**: Each round generates a new map layout with different locations
+- **Interactive 5×5 map grid** with buildings, streets, and intersections, labelled in the language you are practising
+- **Random start/facing/destination** each round, with the destination at least two blocks away
+- **Two scores**: path accuracy (do the directions get there?) and language quality (grammar and vocabulary)
+- **Inline corrections**: mistakes highlighted with the corrected form and an English explanation
+- **Animated route trace** replaying the path your directions describe
+- **Native speaker example** showing how the same route would be described naturally
+- **Chinese / Korean toggle**, remembered across visits
+
+## Architecture
+
+The Groq API key must never reach the browser, so grading goes through a small Express proxy:
+
+```
+browser  ──POST /api/grade──▶  Vite dev proxy  ──▶  server.js (:3001)  ──▶  Groq API
+```
+
+The client calls a relative `/api/grade`, so the same build works behind any same-origin deployment. Set `VITE_API_BASE_URL` to target a backend on a different host.
 
 ## Setup
 
-### 1. Install Dependencies
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Configure LLM API
-
-Copy the example environment file and add your API credentials:
+### 2. Configure the grading API
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and add your LLM API key:
+Add your [Groq API key](https://console.groq.com/keys) to `.env`:
 
 ```env
-VITE_LLM_API_ENDPOINT=https://api.openai.com/v1/chat/completions
-VITE_LLM_API_KEY=your-actual-api-key-here
+GROQ_API_KEY=your-groq-api-key-here
 ```
 
-**Supported LLM Providers:**
-- OpenAI (GPT-4, GPT-3.5)
-- Anthropic Claude
-- Any OpenAI-compatible API
-- Local LLMs (e.g., Ollama)
+Optional overrides: `GROQ_MODEL` (default `llama-3.3-70b-versatile`), `GROQ_TIMEOUT_MS`, `PORT`.
 
-### 3. Run the Development Server
+> **Note:** these are backend-only variables. Never prefix an API key with `VITE_` — Vite inlines `VITE_*` variables into the client bundle, where anyone can read them.
+
+Using a different OpenAI-compatible provider (OpenAI, DeepSeek, a local Ollama server) only requires changing `GROQ_URL` and the auth header in [server.js](server.js).
+
+### 3. Run
 
 ```bash
-npm run dev
+npm run dev:all
 ```
 
-The app will be available at `http://localhost:5173`
+This starts the Vite dev server on <http://localhost:5173> and the grading proxy on <http://localhost:3001>. To run them separately use `npm run dev` and `npm run server`.
+
+Check the backend with `curl http://localhost:3001/api/health`.
 
 ## How to Use
 
-1. **View the Map**: A 5x5 grid shows various Chinese building locations
-2. **Identify Start/End**: Look for the 👤 (your location) and 📍 (destination) icons
-3. **Write Directions**: In the text box, write directions in Chinese to navigate from start to end
-4. **Submit**: Click the submit button to get your directions graded
-5. **Review Feedback**: See your score and detailed corrections with explanations
-6. **Next Round**: Click "Next Round" to practice with a new random map
+1. **Read the map**: 👤 is you (the arrow shows which way you are facing), 📍 is the destination
+2. **Write directions** in the target language — relative directions (forward / left / right) are expected and are not penalised
+3. **Submit** (or press ⌘/Ctrl + Enter)
+4. **Review** your two scores, the literal translation of what you wrote, the corrections, and the native-speaker example
+5. **Next Round** for a new map
 
-## Example Direction Phrases (HSK3 Level)
+## Example Direction Phrases
 
-- 往前走 (wǎng qián zǒu) - go forward
-- 向右拐 (xiàng yòu guǎi) - turn right
-- 向左拐 (xiàng zuǒ guǎi) - turn left
-- 一直走 (yìzhí zǒu) - go straight
-- 到路口 (dào lùkǒu) - reach the intersection
-- 在...旁边 (zài... pángbiān) - next to...
-- 过马路 (guò mǎlù) - cross the street
+**Chinese (HSK3)**
+
+- 往前走 (wǎng qián zǒu) — go forward
+- 向右拐 (xiàng yòu guǎi) — turn right
+- 向左拐 (xiàng zuǒ guǎi) — turn left
+- 一直走 (yìzhí zǒu) — go straight
+- 到路口 (dào lùkǒu) — reach the intersection
+- 在…旁边 (zài… pángbiān) — next to…
+- 过马路 (guò mǎlù) — cross the street
+
+**Korean (TOPIK 3)**
+
+- 앞으로 가세요 — go forward
+- 오른쪽으로 도세요 — turn right
+- 왼쪽으로 도세요 — turn left
+- 쭉 가세요 — go straight
+- 사거리까지 가세요 — go to the intersection
+- … 옆에 있어요 — it is next to…
+- 길을 건너세요 — cross the street
 
 ## Project Structure
 
 ```
+server.js                        # Express proxy: validates input, prompts Groq, sanitizes the response
+vite.config.js                   # Dev server + /api proxy
 src/
 ├── components/
-│   ├── Map.jsx              # 5x5 grid map component
-│   ├── Map.css
-│   ├── DirectionsForm.jsx   # Text input form
-│   ├── DirectionsForm.css
-│   ├── Results.jsx          # Score and feedback display
-│   └── Results.css
+│   ├── Map.jsx                  # 5×5 grid of buildings, streets, and intersections
+│   ├── PathAnimation.jsx        # SVG overlay that replays the graded route
+│   ├── DirectionsForm.jsx       # Text input form
+│   ├── Results.jsx              # Scores, corrections, native example
+│   └── LanguageSwitcher.jsx     # Chinese / Korean toggle
+├── context/
+│   ├── LanguageContext.jsx      # Provider (persists the choice to localStorage)
+│   └── useLanguage.js           # Context + hook
 ├── data/
-│   └── buildings.js         # HSK3 location data and randomization logic
+│   ├── buildings.js             # Vocabulary lists and round randomisation
+│   ├── gridLayout.js            # Shared map geometry (JS + CSS custom properties)
+│   └── translations.js          # UI strings
 ├── services/
-│   └── llmService.js        # LLM API integration for grading
-├── App.jsx                  # Main application component
-└── App.css
+│   └── llmService.js            # Client for the grading API
+├── utils/
+│   └── sanitizeFeedback.js      # Allow-list sanitizer for model-generated HTML
+└── App.jsx                      # Round lifecycle and state
 ```
 
 ## Building for Production
@@ -92,18 +120,13 @@ src/
 npm run build
 ```
 
-The production-ready files will be in the `dist/` directory.
+Output lands in `dist/`. The Express server only serves `/api`, so in production either serve `dist/` from the same origin (behind a reverse proxy) or set `VITE_API_BASE_URL` at build time.
 
 ## Technologies Used
 
-- **React 18**: UI framework
-- **Vite**: Build tool and dev server
-- **CSS3**: Styling
-- **LLM API**: Intelligent grading and feedback
-
-## Contributing
-
-Feel free to submit issues or pull requests to improve the app!
+- **React 19** + **Vite 7**
+- **Express** proxy for the grading API
+- **Groq** (`llama-3.3-70b-versatile` by default)
 
 ## License
 

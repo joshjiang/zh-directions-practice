@@ -7,6 +7,17 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores(['dist']),
   {
+    // Node entry points: `process`, `console`, etc.
+    files: ['server.js', 'vite.config.js', 'eslint.config.js'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      globals: globals.node,
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+    },
+  },
+  {
+    ignores: ['server.js', 'vite.config.js', 'eslint.config.js'],
     files: ['**/*.{js,jsx}'],
     extends: [
       js.configs.recommended,

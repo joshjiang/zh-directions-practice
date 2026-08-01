@@ -5,7 +5,7 @@
 .directions-form-container h2 {
   text-align: center;
   margin-bottom: 1rem;
-  color: #fff;
+  color: var(--heading-color);
 }
 
 .directions-input {
@@ -17,6 +17,9 @@
   font-family: inherit;
   resize: vertical;
   box-sizing: border-box;
+  /* The form sits on the page background, which flips with the color scheme. */
+  background-color: #fff;
+  color: #213547;
 }
 
 .directions-input:focus {
@@ -26,7 +29,12 @@
 
 .directions-input:disabled {
   background-color: #f5f5f5;
+  color: #777;
   cursor: not-allowed;
+}
+
+.directions-form-container label {
+  cursor: pointer;
 }
 
 .button-group {

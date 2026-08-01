@@ -1,7 +1,9 @@
 .path-animation-overlay {
   position: absolute;
-  top: 15px; /* Match the padding from city-grid */
-  left: 15px;
+  /* Offset by the grid's border + padding so (0,0) of the SVG is the top-left
+     of the first building cell. */
+  top: calc(var(--grid-border) + var(--grid-padding));
+  left: calc(var(--grid-border) + var(--grid-padding));
   pointer-events: none;
   z-index: 10;
 }

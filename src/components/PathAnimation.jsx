@@ -1,104 +1,71 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './PathAnimation.css';
+import {
+  GRID_SIZE,
+  BUILDING_SIZE,
+  STREET_SIZE,
+  positionToPixels,
+} from '../data/gridLayout';
 
-const PathAnimation = ({ path, gridSize = 5, onComplete }) => {
+const STEP_DURATION_MS = 500;
+
+const DIRECTION_ARROWS = {
+  north: '⬆️',
+  south: '⬇️',
+  east: '➡️',
+  west: '⬅️',
+};
+
+const PathAnimation = ({ path, gridSize = GRID_SIZE, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [renderedPath, setRenderedPath] = useState(path);
 
-  // Cell dimensions (must match Map.css)
-  const BUILDING_SIZE = 110;
-  const STREET_SIZE = 40;
+  // Restart the walk whenever a new path arrives - including mid-animation,
+  // which previously left currentStep pointing past the end of a shorter path.
+  if (path !== renderedPath) {
+    setRenderedPath(path);
+    setCurrentStep(0);
+  }
+
+  const steps = Array.isArray(path) ? path : [];
+  const lastStep = steps.length - 1;
 
   useEffect(() => {
-    if (path && path.length > 0 && !isAnimating) {
-      setIsAnimating(true);
-      setCurrentStep(0);
-    }
-  }, [path]);
+    if (steps.length === 0) return;
 
-  useEffect(() => {
-    if (!isAnimating || !path || path.length === 0) return;
-
-    if (currentStep < path.length - 1) {
-      const timer = setTimeout(() => {
-        setCurrentStep(currentStep + 1);
-      }, 500); // 500ms per step
-
+    if (currentStep < lastStep) {
+      const timer = setTimeout(() => setCurrentStep((step) => step + 1), STEP_DURATION_MS);
       return () => clearTimeout(timer);
-    } else {
-      // Animation complete
-      const completeTimer = setTimeout(() => {
-        setIsAnimating(false);
-        if (onComplete) onComplete();
-      }, 1000); // Wait 1s before calling onComplete
-
-      return () => clearTimeout(completeTimer);
-    }
-  }, [currentStep, isAnimating, path, onComplete]);
-
-  if (!path || path.length === 0) return null;
-
-  // Convert grid position to pixel coordinates
-  const getPixelCoordinates = (pos) => {
-    const { type, row, col } = pos;
-
-    let x, y;
-
-    if (type === 'building') {
-      // Center of building cell
-      x = col * (BUILDING_SIZE + STREET_SIZE) + BUILDING_SIZE / 2;
-      y = row * (BUILDING_SIZE + STREET_SIZE) + BUILDING_SIZE / 2;
-    } else if (type === 'vertical-street') {
-      // Center of vertical street (between col and col+1)
-      x = col * (BUILDING_SIZE + STREET_SIZE) + BUILDING_SIZE + STREET_SIZE / 2;
-      y = row * (BUILDING_SIZE + STREET_SIZE) + BUILDING_SIZE / 2;
-    } else if (type === 'horizontal-street') {
-      // Center of horizontal street (between row and row+1)
-      x = col * (BUILDING_SIZE + STREET_SIZE) + BUILDING_SIZE / 2;
-      y = row * (BUILDING_SIZE + STREET_SIZE) + BUILDING_SIZE + STREET_SIZE / 2;
-    } else if (type === 'intersection') {
-      // Center of intersection
-      x = col * (BUILDING_SIZE + STREET_SIZE) + BUILDING_SIZE + STREET_SIZE / 2;
-      y = row * (BUILDING_SIZE + STREET_SIZE) + BUILDING_SIZE + STREET_SIZE / 2;
     }
 
-    return { x, y };
-  };
+    if (onComplete) {
+      const timer = setTimeout(onComplete, 2 * STEP_DURATION_MS);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep, lastStep, steps.length, onComplete]);
 
-  // Calculate SVG dimensions based on grid size
-  const svgWidth = gridSize * BUILDING_SIZE + (gridSize - 1) * STREET_SIZE;
-  const svgHeight = gridSize * BUILDING_SIZE + (gridSize - 1) * STREET_SIZE;
+  if (steps.length === 0) return null;
 
-  // Get direction arrow
-  const getDirectionArrow = (direction) => {
-    const arrows = {
-      north: '⬆️',
-      south: '⬇️',
-      east: '➡️',
-      west: '⬅️'
-    };
-    return arrows[direction] || '⬆️';
-  };
+  const svgSize = gridSize * BUILDING_SIZE + (gridSize - 1) * STREET_SIZE;
 
-  // Build the path line segments
-  const visiblePath = path.slice(0, currentStep + 1);
-  const pathPoints = visiblePath.map(getPixelCoordinates);
-
-  // Create SVG path string
-  const pathString = pathPoints.length > 1
-    ? `M ${pathPoints.map(p => `${p.x},${p.y}`).join(' L ')}`
+  const pathPoints = steps.slice(0, Math.min(currentStep, lastStep) + 1).map(positionToPixels);
+  const trail = pathPoints.length > 1
+    ? `M ${pathPoints.map((p) => `${p.x},${p.y}`).join(' L ')}`
     : '';
-
-  // Current position for the animated icon
-  const currentPos = path[currentStep];
-  const currentCoords = getPixelCoordinates(currentPos);
+  const current = pathPoints[pathPoints.length - 1];
+  const facing = steps[Math.min(currentStep, lastStep)].facing;
 
   return (
-    <svg className="path-animation-overlay" width={svgWidth} height={svgHeight}>
-      {/* Red trail line */}
-      {pathString && (
+    <svg
+      className="path-animation-overlay"
+      width={svgSize}
+      height={svgSize}
+      aria-hidden="true"
+      focusable="false"
+    >
+      {trail && (
         <path
-          d={pathString}
+          d={trail}
           stroke="red"
           strokeWidth="4"
           fill="none"
@@ -107,40 +74,17 @@ const PathAnimation = ({ path, gridSize = 5, onComplete }) => {
         />
       )}
 
-      {/* Animated person icon */}
-      <g transform={`translate(${currentCoords.x}, ${currentCoords.y})`}>
-        {/* Direction arrow */}
-        <text
-          x="0"
-          y="-20"
-          fontSize="20"
-          textAnchor="middle"
-          className="animated-direction-arrow"
-        >
-          {getDirectionArrow(currentPos.facing)}
+      <g transform={`translate(${current.x}, ${current.y})`}>
+        <text x="0" y="-20" fontSize="20" textAnchor="middle" className="animated-direction-arrow">
+          {DIRECTION_ARROWS[facing] || DIRECTION_ARROWS.north}
         </text>
-
-        {/* Person emoji */}
-        <text
-          x="0"
-          y="8"
-          fontSize="32"
-          textAnchor="middle"
-          className="animated-person-icon"
-        >
+        <text x="0" y="8" fontSize="32" textAnchor="middle" className="animated-person-icon">
           👤
         </text>
       </g>
 
-      {/* Starting point marker */}
       {currentStep > 0 && (
-        <circle
-          cx={pathPoints[0].x}
-          cy={pathPoints[0].y}
-          r="6"
-          fill="green"
-          opacity="0.6"
-        />
+        <circle cx={pathPoints[0].x} cy={pathPoints[0].y} r="6" fill="green" opacity="0.6" />
       )}
     </svg>
   );

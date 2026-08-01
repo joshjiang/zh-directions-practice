@@ -1,4 +1,6 @@
-// HSK3 level location vocabulary
+import { GRID_SIZE } from './gridLayout';
+
+// HSK3 level location vocabulary (Chinese)
 export const HSK3_LOCATIONS = [
   '图书馆', // library
   '超市', // supermarket
@@ -27,80 +29,110 @@ export const HSK3_LOCATIONS = [
   '游泳池', // swimming pool
 ];
 
-/**
- * Generates a random 5x5 grid of buildings from HSK3 locations
- * Ensures no duplicate buildings in the grid
- */
-export const generateRandomBuildings = () => {
-  const grid = [];
-  const usedBuildings = new Set();
+// TOPIK 3 level location vocabulary (Korean)
+export const TOPIK3_LOCATIONS = [
+  '도서관', // library
+  '슈퍼마켓', // supermarket
+  '식당', // restaurant
+  '병원', // hospital
+  '은행', // bank
+  '학교', // school
+  '공원', // park
+  '서점', // bookstore
+  '영화관', // cinema
+  '카페', // café
+  '우체국', // post office
+  '기차역', // train station
+  '회사', // company
+  '호텔', // hotel
+  '가게', // shop
+  '약국', // pharmacy
+  '교실', // classroom
+  '사무실', // office
+  '음식점', // restaurant
+  '기숙사', // dormitory
+  '공항', // airport
+  '역', // station
+  '시장', // market
+  '체육관', // gymnasium
+  '수영장', // swimming pool
+];
 
-  // Shuffle the locations array
-  const shuffled = [...HSK3_LOCATIONS].sort(() => Math.random() - 0.5);
+export const DIRECTIONS = ['north', 'south', 'east', 'west'];
 
-  let index = 0;
-  for (let row = 0; row < 5; row++) {
-    grid[row] = [];
-    for (let col = 0; col < 5; col++) {
-      // Use shuffled locations, wrapping around if needed
-      grid[row][col] = shuffled[index % shuffled.length];
-      index++;
-    }
+const randomInt = (max) => Math.floor(Math.random() * max);
+
+const pickRandom = (items) => items[randomInt(items.length)];
+
+/** Fisher-Yates: `sort(() => Math.random() - 0.5)` is measurably biased. */
+const shuffle = (items) => {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
   }
+  return result;
+};
 
-  return grid;
+/**
+ * Generates a random grid of buildings.
+ * @param {string} language - 'chinese' or 'korean'
+ * @returns {string[][]} GRID_SIZE x GRID_SIZE grid of location names
+ */
+export const generateRandomBuildings = (language = 'chinese') => {
+  const locations = language === 'korean' ? TOPIK3_LOCATIONS : HSK3_LOCATIONS;
+  const shuffled = shuffle(locations);
+
+  return Array.from({ length: GRID_SIZE }, (_, row) =>
+    Array.from({ length: GRID_SIZE }, (_, col) => shuffled[(row * GRID_SIZE + col) % shuffled.length])
+  );
 };
 
 /**
  * Generates a random starting direction
  * @returns {string} One of: 'north', 'south', 'east', 'west'
  */
-export const generateRandomDirection = () => {
-  const directions = ['north', 'south', 'east', 'west'];
-  return directions[Math.floor(Math.random() * directions.length)];
+export const generateRandomDirection = () => pickRandom(DIRECTIONS);
+
+const generateStreetPosition = () => {
+  const type = pickRandom(['vertical-street', 'horizontal-street', 'intersection']);
+
+  // Streets sit *between* buildings, so the axis they run along has one fewer slot.
+  switch (type) {
+    case 'vertical-street':
+      return { type, row: randomInt(GRID_SIZE), col: randomInt(GRID_SIZE - 1) };
+    case 'horizontal-street':
+      return { type, row: randomInt(GRID_SIZE - 1), col: randomInt(GRID_SIZE) };
+    default:
+      return { type, row: randomInt(GRID_SIZE - 1), col: randomInt(GRID_SIZE - 1) };
+  }
 };
 
+const generateBuildingPosition = () => ({
+  type: 'building',
+  row: randomInt(GRID_SIZE),
+  col: randomInt(GRID_SIZE),
+});
+
+/** Blocks away, ignoring the street/building distinction. */
+const gridDistance = (a, b) => Math.abs(a.row - b.row) + Math.abs(a.col - b.col);
+
 /**
- * Generates random start and end positions, plus starting direction
+ * Generates random start and end positions, plus a starting direction.
  * Start: on a street (vertical-street, horizontal-street, or intersection)
- * End: in a building
- * Ensures they are not the same position
+ * End: in a building, at least MIN_DISTANCE blocks away so the exercise
+ *      requires an actual route rather than "it's right there".
  */
 export const generateRandomPositions = () => {
-  const streetTypes = ['vertical-street', 'horizontal-street', 'intersection'];
-
-  const generateStreetPosition = () => {
-    const type = streetTypes[Math.floor(Math.random() * streetTypes.length)];
-    let row, col;
-
-    if (type === 'vertical-street') {
-      // Vertical streets are between columns 0-3 (4 vertical streets)
-      row = Math.floor(Math.random() * 5); // 0-4
-      col = Math.floor(Math.random() * 4); // 0-3
-    } else if (type === 'horizontal-street') {
-      // Horizontal streets are between rows 0-3 (4 horizontal streets)
-      row = Math.floor(Math.random() * 4); // 0-3
-      col = Math.floor(Math.random() * 5); // 0-4
-    } else {
-      // Intersections are at row 0-3, col 0-3
-      row = Math.floor(Math.random() * 4); // 0-3
-      col = Math.floor(Math.random() * 4); // 0-3
-    }
-
-    return { type, row, col };
-  };
-
-  const generateBuildingPosition = () => {
-    return {
-      type: 'building',
-      row: Math.floor(Math.random() * 5), // 0-4
-      col: Math.floor(Math.random() * 5)  // 0-4
-    };
-  };
+  const MIN_DISTANCE = 2;
+  const MAX_ATTEMPTS = 50;
 
   const start = generateStreetPosition();
-  const end = generateBuildingPosition();
-  const direction = generateRandomDirection();
 
-  return { start, end, direction };
+  let end = generateBuildingPosition();
+  for (let i = 0; i < MAX_ATTEMPTS && gridDistance(start, end) < MIN_DISTANCE; i++) {
+    end = generateBuildingPosition();
+  }
+
+  return { start, end, direction: generateRandomDirection() };
 };

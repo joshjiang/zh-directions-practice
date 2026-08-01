@@ -5,7 +5,7 @@
 .map-container h2 {
   text-align: center;
   margin-bottom: 1rem;
-  color: #fff;
+  color: var(--heading-color);
 }
 
 .city-grid-wrapper {
@@ -15,9 +15,11 @@
 
 .city-grid {
   display: inline-block;
-  border: 3px solid #333;
+  /* Geometry comes from src/data/gridLayout.js via inline custom properties so
+     the SVG path overlay always lines up with the rendered cells. */
+  border: var(--grid-border) solid #333;
   background-color: #888;
-  padding: 15px;
+  padding: var(--grid-padding);
   border-radius: 8px;
 }
 
@@ -30,8 +32,11 @@
 }
 
 .building-cell {
-  width: 110px;
-  height: 110px;
+  width: var(--building-size);
+  height: var(--building-size);
+  /* border-box keeps the rendered size exactly --building-size; without it the
+     2px border widened every cell and the path overlay drifted 4px per column. */
+  box-sizing: border-box;
   border: 2px solid #555;
   display: flex;
   align-items: center;
@@ -52,8 +57,8 @@
 }
 
 .vertical-street {
-  width: 40px;
-  height: 110px;
+  width: var(--street-size);
+  height: var(--building-size);
   background-color: #666;
   position: relative;
   display: flex;
@@ -69,8 +74,8 @@
 }
 
 .horizontal-street {
-  width: 110px;
-  height: 40px;
+  width: var(--building-size);
+  height: var(--street-size);
   background-color: #666;
   position: relative;
   display: flex;
@@ -86,8 +91,8 @@
 }
 
 .intersection {
-  width: 40px;
-  height: 40px;
+  width: var(--street-size);
+  height: var(--street-size);
   background-color: #666;
   position: relative;
   display: flex;

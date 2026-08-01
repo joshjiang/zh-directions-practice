@@ -1,39 +1,44 @@
 /**
- * Service for grading user's Chinese directions using backend API
+ * Client for the backend grading API.
+ *
+ * The path is relative so it works behind the Vite dev proxy (see
+ * vite.config.js) and in any deployment where the API is served from the same
+ * origin. Set VITE_API_BASE_URL to point at a different host.
  */
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+const REQUEST_TIMEOUT_MS = 60000;
 
 /**
- * Sends user directions to backend for LLM grading
- * @param {string} userDirections - The user's written directions in Chinese
- * @param {object} context - Map context including buildings, start, and end positions
- * @returns {Promise<{score: number, feedback: string}>}
+ * Sends user directions to the backend for LLM grading.
+ * @param {string} userDirections - The user's written directions
+ * @param {object} context - Map context: buildings, startPos, endPos, direction, language
+ * @returns {Promise<{pathScore: number, languageScore: number, translation: string, feedback: string, nativeExample: string, path: object[]}>}
+ * @throws {Error} If the request fails; callers are expected to surface the message.
  */
 export const gradeDirections = async (userDirections, context) => {
+  let response;
   try {
-    const response = await fetch('http://localhost:3001/api/grade', {
+    response = await fetch(`${API_BASE_URL}/api/grade`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userDirections,
-        context
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userDirections, context }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data;
   } catch (error) {
-    console.error('Error calling grading API:', error);
-    return {
-      score: 0,
-      feedback: `<p><strong>Error:</strong> Unable to connect to grading service.</p>
-                 <p>Make sure the backend server is running on port 3001.</p>
-                 <p>Error details: ${error.message}</p>`
-    };
+    if (error.name === 'TimeoutError') {
+      throw new Error('The grading service timed out. Please try again.');
+    }
+    throw new Error(
+      'Could not reach the grading service. Make sure the backend is running (npm run server).'
+    );
   }
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.error || `Grading service returned ${response.status}.`);
+  }
+
+  return data;
 };

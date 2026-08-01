@@ -1,34 +1,51 @@
-import React from 'react';
+import { useMemo } from 'react';
 import './Results.css';
+import { useLanguage } from '../context/useLanguage';
+import { translations } from '../data/translations';
+import { sanitizeFeedback } from '../utils/sanitizeFeedback';
+
+const scoreColor = (score) => {
+  if (score >= 80) return '#4CAF50';
+  if (score >= 60) return '#FFC107';
+  return '#f44336';
+};
+
+const Score = ({ value, labelEn, label, htmlLang }) => (
+  <div className="score-item">
+    <div className="score-circle" style={{ background: scoreColor(value) }}>
+      {value}%
+    </div>
+    <div className="score-label">
+      {labelEn}<br /><span lang={htmlLang}>{label}</span>
+    </div>
+  </div>
+);
 
 const Results = ({ pathScore, languageScore, feedback, translation, nativeExample, onNextRound }) => {
-  if (!feedback) return null;
+  const { language } = useLanguage();
+  const t = translations[language];
+  const htmlLang = language === 'korean' ? 'ko' : 'zh';
+
+  // Model-generated HTML that quotes the student's raw input - always sanitize.
+  const safeFeedback = useMemo(() => sanitizeFeedback(feedback), [feedback]);
+
+  const hasScores = pathScore !== null || languageScore !== null;
+
+  // Nothing graded yet. A graded round with scores but no feedback still
+  // renders, so the user is never stranded without a "next round" button.
+  if (!hasScores && !safeFeedback) return null;
 
   return (
     <div className="results-container">
-      {(pathScore !== null || languageScore !== null) && (
+      {hasScores && (
         <div className="score-section">
-          <h2>评分 (Scores)</h2>
+          <h2><span lang={htmlLang}>{t.scores}</span> ({t.scoresEn})</h2>
           <div className="score-display">
             {pathScore !== null && (
-              <div className="score-item">
-                <div className="score-circle" style={{
-                  background: pathScore >= 80 ? '#4CAF50' : pathScore >= 60 ? '#FFC107' : '#f44336'
-                }}>
-                  {pathScore}%
-                </div>
-                <div className="score-label">Path Accuracy<br/>路线准确性</div>
-              </div>
+              <Score value={pathScore} labelEn={t.pathAccuracyEn} label={t.pathAccuracy} htmlLang={htmlLang} />
             )}
             {languageScore !== null && (
-              <div className="score-item">
-                <div className="score-circle" style={{
-                  background: languageScore >= 80 ? '#4CAF50' : languageScore >= 60 ? '#FFC107' : '#f44336'
-                }}>
-                  {languageScore}%
-                </div>
-                <div className="score-label">Language Quality<br/>语言质量</div>
-              </div>
+              <Score value={languageScore} labelEn={t.languageQualityEn} label={t.languageQuality} htmlLang={htmlLang} />
             )}
           </div>
         </div>
@@ -36,25 +53,31 @@ const Results = ({ pathScore, languageScore, feedback, translation, nativeExampl
 
       {translation && (
         <div className="translation-section">
-          <h3>你的翻译 (Your Translation)</h3>
+          <h3><span lang={htmlLang}>{t.yourTranslation}</span> ({t.yourTranslationEn})</h3>
           <p className="translation-text">{translation}</p>
         </div>
       )}
 
-      <div className="feedback-section">
-        {(pathScore !== null || languageScore !== null) && <h3>反馈 (Feedback)</h3>}
-        <div className="feedback-content" dangerouslySetInnerHTML={{ __html: feedback }} />
-      </div>
+      {safeFeedback && (
+        <div className="feedback-section">
+          {hasScores && <h3><span lang={htmlLang}>{t.feedback}</span> ({t.feedbackEn})</h3>}
+          <div
+            className="feedback-content"
+            lang={htmlLang}
+            dangerouslySetInnerHTML={{ __html: safeFeedback }}
+          />
+        </div>
+      )}
 
       {nativeExample && (
         <div className="native-example-section">
-          <h3>Native Speaker Example<br/>母语者示例</h3>
-          <p className="native-example-text">{nativeExample}</p>
+          <h3>{t.nativeExampleEn}<br /><span lang={htmlLang}>{t.nativeExample}</span></h3>
+          <p className="native-example-text" lang={htmlLang}>{nativeExample}</p>
         </div>
       )}
 
       <button onClick={onNextRound} className="next-button">
-        下一题 (Next Round)
+        <span lang={htmlLang}>{t.nextRound}</span> ({t.nextRoundEn})
       </button>
     </div>
   );

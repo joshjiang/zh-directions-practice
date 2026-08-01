@@ -7,6 +7,11 @@
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
 
+  /* Headings sit on the page background, so they must follow the color scheme.
+     They were hardcoded to #fff, which is invisible in light mode. */
+  --heading-color: rgba(255, 255, 255, 0.87);
+  --subtle-text-color: #aaa;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -58,6 +63,8 @@ button:focus-visible {
   :root {
     color: #213547;
     background-color: #ffffff;
+    --heading-color: #213547;
+    --subtle-text-color: #555;
   }
   a:hover {
     color: #747bff;
