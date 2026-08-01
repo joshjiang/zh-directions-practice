@@ -128,6 +128,20 @@ Output lands in `dist/`. The Express server only serves `/api`, so in production
 - **Express** proxy for the grading API
 - **Groq** (`openai/gpt-oss-120b` by default)
 
+### Grading regression cases
+
+Two failure modes are worth re-checking after any prompt change, both verified
+on `openai/gpt-oss-120b` and `openai/gpt-oss-20b`:
+
+| Case | Setup | Expected |
+| --- | --- | --- |
+| Describe-only answer | Standing east of 公司 facing north, answer `公司在你的左边。` | High. A correct relative description is a complete answer; a one-step path is not a defect |
+| Intersection geometry | At intersection (0,1) facing north, turn around, one block south, `教室在你的右边。` | High. intersection (r,c) sits between rows r/r+1 AND columns c/c+1 |
+
+The second one caused wrong feedback naming a building two columns away,
+because the prompt described intersections ambiguously while describing streets
+precisely.
+
 ### Choosing a model
 
 `openai/gpt-oss-120b` is the default because grading here hinges on left/right
