@@ -5,7 +5,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const PORT = Number(process.env.PORT) || 3001;
-const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+// gpt-oss-120b scored 6/6 on a left/right-relative-to-facing benchmark where
+// llama-3.3-70b returned 0 for correct answers 2 out of 3 times, and it traces
+// multi-step paths instead of collapsing them to a single point.
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const REQUEST_TIMEOUT_MS = Number(process.env.GROQ_TIMEOUT_MS) || 45000;
 const MAX_DIRECTIONS_LENGTH = 2000;
@@ -219,8 +222,10 @@ IMPORTANT REMINDERS:
 - When student turns, keep the same position but update facing direction in that path entry`;
 };
 
-const callGroq = async (prompt, languageName) => {
-  const response = await fetch(GROQ_URL, {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const postCompletion = (prompt, languageName, { jsonMode }) =>
+  fetch(GROQ_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -239,13 +244,42 @@ const callGroq = async (prompt, languageName) => {
       // inconsistent scores for identical answers.
       temperature: 0.2,
       max_tokens: 2000,
-      response_format: { type: 'json_object' },
+      ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
     }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
+const callGroq = async (prompt, languageName) => {
+  // Not every model accepts response_format; some reject the request outright.
+  // The prompt already demands JSON, so falling back keeps the app portable
+  // across models.
+  let jsonMode = true;
+  let response = await postCompletion(prompt, languageName, { jsonMode });
+
+  if (response.status === 400 && jsonMode) {
+    const detail = await response.text().catch(() => '');
+    if (/json/i.test(detail)) {
+      jsonMode = false;
+      response = await postCompletion(prompt, languageName, { jsonMode });
+    } else {
+      throw new Error(`Groq API error 400: ${detail.slice(0, 500)}`);
+    }
+  }
+
+  // The free tier is capped at a few thousand tokens per minute, so a single
+  // burst of practice can trip the limit. One paced retry usually clears it.
+  if (response.status === 429) {
+    const retryAfter = Number(response.headers.get('retry-after'));
+    const waitMs = Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 8000, 20000);
+    await sleep(waitMs);
+    response = await postCompletion(prompt, languageName, { jsonMode });
+  }
+
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
+    if (response.status === 429) {
+      throw new Error('Rate limit reached for the grading model. Wait a moment and try again.');
+    }
     throw new Error(`Groq API error ${response.status}: ${detail.slice(0, 500) || response.statusText}`);
   }
 

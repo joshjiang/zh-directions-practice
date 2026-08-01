@@ -42,7 +42,7 @@ Add your [Groq API key](https://console.groq.com/keys) to `.env`:
 GROQ_API_KEY=your-groq-api-key-here
 ```
 
-Optional overrides: `GROQ_MODEL` (default `llama-3.3-70b-versatile`), `GROQ_TIMEOUT_MS`, `PORT`.
+Optional overrides: `GROQ_MODEL` (default `openai/gpt-oss-120b`), `GROQ_TIMEOUT_MS`, `PORT`.
 
 > **Note:** these are backend-only variables. Never prefix an API key with `VITE_` — Vite inlines `VITE_*` variables into the client bundle, where anyone can read them.
 
@@ -126,7 +126,22 @@ Output lands in `dist/`. The Express server only serves `/api`, so in production
 
 - **React 19** + **Vite 7**
 - **Express** proxy for the grading API
-- **Groq** (`llama-3.3-70b-versatile` by default)
+- **Groq** (`openai/gpt-oss-120b` by default)
+
+### Choosing a model
+
+`openai/gpt-oss-120b` is the default because grading here hinges on left/right
+reasoning relative to a facing direction. On an 6-case benchmark of that skill:
+
+| Model | Correct left/right verdicts | Notes |
+| --- | --- | --- |
+| `openai/gpt-oss-120b` | 6/6 | Traces multi-step paths; example starts from the real position |
+| `llama-3.3-70b-versatile` | 4/6 | Scored 0 on correct answers 2 of 3 times; path collapses to one point |
+| `qwen/qwen3.6-27b` | 0/6 | Returns malformed JSON on every call |
+
+Note the free tier is capped at **6,000 tokens/minute**, and one grading costs
+roughly 3,400 — about two submissions per minute before a 429. The server
+retries once with backoff.
 
 ## License
 
