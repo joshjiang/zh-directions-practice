@@ -29,18 +29,45 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '64kb' }));
 
+/**
+ * Describes a position in terms of the buildings that physically touch it.
+ *
+ * Street and intersection indices are offsets between grid cells, not cells
+ * themselves: intersection (r, c) sits between rows r/r+1 AND columns c/c+1.
+ * Stating that implicitly was the source of off-by-one grading - name the
+ * neighbouring buildings so there is nothing left to infer.
+ */
 const describePosition = (pos, buildings) => {
+  const name = (row, col) => buildings[row]?.[col] ?? '(edge of map)';
+  const { row, col } = pos;
+
   switch (pos.type) {
     case 'building':
-      return `in ${buildings[pos.row][pos.col]} (building at row ${pos.row}, col ${pos.col})`;
+      return `in ${name(row, col)} (building at row ${row}, col ${col})`;
     case 'vertical-street':
-      return `on the street between columns ${pos.col} and ${pos.col + 1}, at row ${pos.row}`;
+      return (
+        `on the north-south street between columns ${col} and ${col + 1}, level with building row ${row}. ` +
+        `${name(row, col)} (row ${row}, col ${col}) is immediately WEST of you and ` +
+        `${name(row, col + 1)} (row ${row}, col ${col + 1}) is immediately EAST of you`
+      );
     case 'horizontal-street':
-      return `on the street between rows ${pos.row} and ${pos.row + 1}, at column ${pos.col}`;
+      return (
+        `on the east-west street between rows ${row} and ${row + 1}, level with building column ${col}. ` +
+        `${name(row, col)} (row ${row}, col ${col}) is immediately NORTH of you and ` +
+        `${name(row + 1, col)} (row ${row + 1}, col ${col}) is immediately SOUTH of you`
+      );
     case 'intersection':
-      return `at the intersection of row ${pos.row} and column ${pos.col}`;
+      return (
+        `at the intersection where the east-west street between rows ${row} and ${row + 1} ` +
+        `crosses the north-south street between columns ${col} and ${col + 1}. ` +
+        `The four buildings touching this corner are: ` +
+        `${name(row, col)} (row ${row}, col ${col}) to the NORTHWEST, ` +
+        `${name(row, col + 1)} (row ${row}, col ${col + 1}) to the NORTHEAST, ` +
+        `${name(row + 1, col)} (row ${row + 1}, col ${col}) to the SOUTHWEST, ` +
+        `${name(row + 1, col + 1)} (row ${row + 1}, col ${col + 1}) to the SOUTHEAST`
+      );
     default:
-      return `position row ${pos.row}, col ${pos.col}`;
+      return `position row ${row}, col ${col}`;
   }
 };
 
@@ -124,6 +151,18 @@ CRITICAL INSTRUCTIONS - READ CAREFULLY:
    Row 0 = NORTH (top), Row 4 = SOUTH (bottom)
    Col 0 = WEST (left), Col 4 = EAST (right)
 
+   Buildings occupy the grid cells. Streets run BETWEEN them, so a street or
+   intersection index refers to the gap after that row/column, not to the cell:
+   - vertical-street (r, c): the north-south street between columns c and c+1,
+     level with building row r. Building (r, c) is west of it, (r, c+1) east.
+   - horizontal-street (r, c): the east-west street between rows r and r+1,
+     level with building column c. Building (r, c) is north of it, (r+1, c) south.
+   - intersection (r, c): where those two streets cross. It touches FOUR
+     buildings: (r, c) northwest, (r, c+1) northeast, (r+1, c) southwest,
+     (r+1, c+1) southeast.
+   So intersection (0, 1) is NOT at building (0, 1). It is the corner between
+   building rows 0 and 1 and between building columns 1 and 2.
+
 3. SPATIAL REASONING - LEFT vs RIGHT:
    Think of yourself standing in the position, facing the direction specified:
    - Facing NORTH (↑): left is WEST (col decreases), right is EAST (col increases)
@@ -183,6 +222,14 @@ YOUR TASK:
 
 4. Provide TWO separate scores from 0-100:
    - pathScore: How intelligible/correct are the directions? Do they lead to the destination?
+     - A correct RELATIVE DESCRIPTION of where the destination is scores high
+       even when it contains no movement at all. If the student is standing
+       next to the destination and correctly says it is on their left, that is
+       a complete and correct answer: score it near 100.
+     - Judge whether what they said is TRUE from their position and facing,
+       not whether they narrated every step.
+     - This is separate from the "path" field below. A short answer produces a
+       short path; that is not a defect and must not lower this score.
    - languageScore: How correct is the ${languageName} grammar, vocabulary, and phrasing?
 
 5. Highlight errors with corrections in HTML format:
@@ -207,6 +254,9 @@ YOUR TASK:
      move one step at a time, never jump across the map.
    - If their directions become impossible or ambiguous, stop the path at the
      last position you can determine and say so in the feedback.
+   - If they describe the destination's location without moving, the path is
+     simply their starting position. That is correct output, and it does NOT
+     mean the answer is wrong - see the pathScore rules above.
 
 7. REQUIRED: Provide a "nativeExample" field showing natural ${languageName} directions for this route
    - This field is MANDATORY and must contain ${languageName} text
@@ -291,16 +341,29 @@ const callGroq = async (prompt, languageName) => {
   // The free tier is capped at a few thousand tokens per minute, so a single
   // burst of practice can trip the limit. One paced retry usually clears it.
   if (response.status === 429) {
-    const retryAfter = Number(response.headers.get('retry-after'));
-    const waitMs = Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 8000, 20000);
-    await sleep(waitMs);
-    response = await postCompletion(prompt, languageName, { jsonMode });
+    const body = await response.clone().text().catch(() => '');
+    // A per-minute limit clears on its own; a daily cap does not, and silently
+    // retrying against it just wastes the user's time.
+    const isDailyCap = /per day|TPD|RPD/i.test(body);
+    if (!isDailyCap) {
+      const retryAfter = Number(response.headers.get('retry-after'));
+      const waitMs = Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 8000, 20000);
+      await sleep(waitMs);
+      response = await postCompletion(prompt, languageName, { jsonMode });
+    }
   }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
     if (response.status === 429) {
-      throw new Error('Rate limit reached for the grading model. Wait a moment and try again.');
+      const wait = detail.match(/try again in ([\dhms.]+?)\.?["\s]/i)?.[1];
+      const daily = /per day|TPD|RPD/i.test(detail);
+      throw new Error(
+        daily
+          ? `Daily quota for ${GROQ_MODEL} is used up${wait ? `; it resets in ${wait}` : ''}. ` +
+            'Switch GROQ_MODEL to another model, or wait for the reset.'
+          : `Rate limit reached${wait ? `; try again in ${wait}` : ''}.`
+      );
     }
     throw new Error(`Groq API error ${response.status}: ${detail.slice(0, 500) || response.statusText}`);
   }

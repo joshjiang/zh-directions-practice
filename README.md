@@ -151,6 +151,11 @@ enough to break rounds. Note it is a hybrid reasoning model that emits
 benchmark while using 1,338 completion tokens instead of 2,865, which roughly
 doubles how many submissions fit in the rate limit.
 
+The free tier also has a **daily token cap** (200,000 for `gpt-oss-120b`).
+Benchmarking sweeps exhaust it quickly; when it trips, the error names the
+model and the reset time, and switching `GROQ_MODEL` gives you a fresh
+per-model budget.
+
 Note the free tier is capped at **6,000 tokens/minute**. A grading costs about
 1,400 prompt tokens plus completion, so at default reasoning that is roughly
 1.4 submissions per minute and at `low` about 2.2. The server retries once with
