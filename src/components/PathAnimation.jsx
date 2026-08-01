@@ -5,6 +5,7 @@ import {
   BUILDING_SIZE,
   STREET_SIZE,
   positionToPixels,
+  routeAlongStreets,
 } from '../data/gridLayout';
 
 const STEP_DURATION_MS = 500;
@@ -49,8 +50,10 @@ const PathAnimation = ({ path, gridSize = GRID_SIZE, onComplete }) => {
   const svgSize = gridSize * BUILDING_SIZE + (gridSize - 1) * STREET_SIZE;
 
   const pathPoints = steps.slice(0, Math.min(currentStep, lastStep) + 1).map(positionToPixels);
+  // Walkers follow streets, so the trail turns at right angles rather than
+  // cutting diagonally across the blocks between two positions.
   const trail = pathPoints.length > 1
-    ? `M ${pathPoints.map((p) => `${p.x},${p.y}`).join(' L ')}`
+    ? `M ${routeAlongStreets(pathPoints).map((p) => `${p.x},${p.y}`).join(' L ')}`
     : '';
   const current = pathPoints[pathPoints.length - 1];
   const facing = steps[Math.min(currentStep, lastStep)].facing;

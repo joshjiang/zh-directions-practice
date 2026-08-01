@@ -147,9 +147,17 @@ enough to break rounds. Note it is a hybrid reasoning model that emits
 `<think>` blocks inline in `content`; the server strips those, and
 `GROQ_REASONING_EFFORT=none` turns thinking off entirely.
 
-Note the free tier is capped at **6,000 tokens/minute**, and one grading costs
-roughly 3,400 — about two submissions per minute before a 429. The server
-retries once with backoff.
+`GROQ_REASONING_EFFORT=low` is worth setting: it scored 6/6 on the same
+benchmark while using 1,338 completion tokens instead of 2,865, which roughly
+doubles how many submissions fit in the rate limit.
+
+Note the free tier is capped at **6,000 tokens/minute**. A grading costs about
+1,400 prompt tokens plus completion, so at default reasoning that is roughly
+1.4 submissions per minute and at `low` about 2.2. The server retries once with
+backoff on a 429.
+
+Reasoning tokens share the `max_tokens` budget, so if you switch models and
+start seeing truncated responses, raise `GROQ_MAX_TOKENS`.
 
 ## License
 

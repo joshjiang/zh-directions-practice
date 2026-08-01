@@ -194,7 +194,19 @@ YOUR TASK:
    - If analyzing Korean text, corrections MUST be in Korean
    - If analyzing Chinese text, corrections MUST be in Chinese
 
-6. Generate a traced path showing each step of movement with position and facing direction
+6. Generate a traced path in the "path" field that follows the student's OWN
+   directions literally, step by step, with position and facing direction.
+   - This is the single most important field for the student: it shows them
+     where their words actually led.
+   - If their directions are wrong, the path MUST end wherever those wrong
+     directions end. Do NOT silently correct them and do NOT route to the
+     destination unless their directions genuinely arrive there.
+   - If they say "turn around", the facing must reverse; if they say "turn
+     right", apply the turning rules above - never substitute a different turn.
+   - Follow only the streets. Consecutive entries must be adjacent positions:
+     move one step at a time, never jump across the map.
+   - If their directions become impossible or ambiguous, stop the path at the
+     last position you can determine and say so in the feedback.
 
 7. REQUIRED: Provide a "nativeExample" field showing natural ${languageName} directions for this route
    - This field is MANDATORY and must contain ${languageName} text
@@ -224,6 +236,7 @@ IMPORTANT REMINDERS:
 - The "nativeExample" field is REQUIRED and must be in ${languageName}
 - The "translation" field should be in English
 - Each path entry MUST have: type, row, col, and facing
+- The path traces the STUDENT'S directions, not the correct route
 - CRITICAL: "type" must ONLY be one of: ${POSITION_TYPES.map((t) => `"${t}"`).join(', ')}
 - "row" and "col" must be integers between 0 and ${GRID_SIZE - 1}
 - DO NOT use "type": "turn" - instead, update the "facing" field at the current position when a turn occurs
