@@ -11,7 +11,10 @@ const PORT = Number(process.env.PORT) || 3001;
 const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const REQUEST_TIMEOUT_MS = Number(process.env.GROQ_TIMEOUT_MS) || 45000;
-const MAX_TOKENS = Number(process.env.GROQ_MAX_TOKENS) || 2000;
+// Reasoning models spend part of this budget thinking before emitting any
+// JSON. gpt-oss-120b needs ~2900 for a multi-step answer; at 2000 it truncated
+// mid-object and every long submission failed to parse.
+const MAX_TOKENS = Number(process.env.GROQ_MAX_TOKENS) || 4000;
 // Hybrid reasoning models (qwen3.x) think by default and blow the token budget
 // on a task this small. Set to 'none' to turn thinking off for those models;
 // leave unset for models like gpt-oss whose reasoning is the point.
@@ -290,10 +293,17 @@ const callGroq = async (prompt, languageName) => {
   }
 
   const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
+  const choice = data?.choices?.[0];
+  const content = choice?.message?.content;
   if (typeof content !== 'string') {
     throw new Error('Groq API returned no message content.');
   }
+  const finishReason = choice?.finish_reason;
+  // Token usage matters here: the free tier caps tokens per minute, and
+  // reasoning models spend part of this budget before emitting any JSON.
+  console.log(
+    `grade: model=${GROQ_MODEL} finish=${finishReason} completion_tokens=${data?.usage?.completion_tokens ?? '?'}`
+  );
 
   // Some hybrid reasoning models emit <think> blocks inline in content rather
   // than in a separate field, which is not valid JSON. Strip those, then code
@@ -307,7 +317,13 @@ const callGroq = async (prompt, languageName) => {
   try {
     return JSON.parse(cleaned);
   } catch {
-    throw new Error('Grader returned malformed JSON.');
+    if (finishReason === 'length') {
+      throw new Error(
+        `The grader ran out of tokens mid-response (max_tokens=${MAX_TOKENS}, ` +
+          `used ${data?.usage?.completion_tokens ?? '?'}). Raise GROQ_MAX_TOKENS.`
+      );
+    }
+    throw new Error(`Grader returned malformed JSON (finish_reason=${finishReason}).`);
   }
 };
 
