@@ -180,6 +180,22 @@ The second one caused wrong feedback naming a building two columns away,
 because the prompt described intersections ambiguously while describing streets
 precisely.
 
+### Known limitation: ambiguous landmark phrasing
+
+Directions like `如果你去到公园的左边然后往前走` ("go to the left side of the
+park and then go forward") are graded harshly. The grader now reads *which*
+side correctly - facing east, the park's left side is its north side - but the
+phrase leaves the listener's **facing** undefined once they get there. Walking
+north to reach that side and then "going forward" means continuing north, which
+does not reach a destination that lies east.
+
+That reading is defensible, so this is a genuine ambiguity in the student's
+sentence rather than purely a grader bug. Ideally it would earn partial credit
+with feedback teaching the clearer form (`沿着公园左边的路往前走` - "walk along
+the road on the park's left side"), instead of a near-zero score. Attempts to
+force the generous reading via prompt rules did not hold, and risk teaching the
+grader to accept genuinely wrong answers, so it is left as-is.
+
 ### Choosing a model
 
 `openai/gpt-oss-120b` is the default because grading here hinges on left/right
