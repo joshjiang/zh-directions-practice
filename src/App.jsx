@@ -14,6 +14,7 @@ const emptyResult = {
   languageScore: null,
   feedback: null,
   translation: null,
+  pathExplanation: null,
   nativeExample: null,
   path: [],
 };
@@ -58,6 +59,7 @@ function App() {
         languageScore: graded.languageScore ?? 0,
         feedback: graded.feedback ?? '',
         translation: graded.translation ?? '',
+        pathExplanation: graded.pathExplanation ?? '',
         nativeExample: graded.nativeExample ?? '',
         path: graded.path ?? [],
       });
@@ -111,6 +113,7 @@ function App() {
               languageScore={result.languageScore}
               feedback={result.feedback}
               translation={result.translation}
+              pathExplanation={result.pathExplanation}
               nativeExample={result.nativeExample}
               onNextRound={startNewRound}
             />

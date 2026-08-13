@@ -21,7 +21,15 @@ const Score = ({ value, labelEn, label, htmlLang }) => (
   </div>
 );
 
-const Results = ({ pathScore, languageScore, feedback, translation, nativeExample, onNextRound }) => {
+const Results = ({
+  pathScore,
+  languageScore,
+  feedback,
+  translation,
+  pathExplanation,
+  nativeExample,
+  onNextRound,
+}) => {
   const { language } = useLanguage();
   const t = translations[language];
   const htmlLang = language === 'korean' ? 'ko' : 'zh';
@@ -48,6 +56,11 @@ const Results = ({ pathScore, languageScore, feedback, translation, nativeExampl
               <Score value={languageScore} labelEn={t.languageQualityEn} label={t.languageQuality} htmlLang={htmlLang} />
             )}
           </div>
+          {pathExplanation && (
+            <p className="score-explanation">
+              <strong>{t.whyThisScoreEn}:</strong> {pathExplanation}
+            </p>
+          )}
         </div>
       )}
 

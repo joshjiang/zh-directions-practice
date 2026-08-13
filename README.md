@@ -6,8 +6,12 @@ A React single-page app for practising how to give directions in **Chinese (HSK3
 
 - **Interactive 5×5 map grid** with buildings, streets, and intersections, labelled in the language you are practising
 - **Random start/facing/destination** each round, with the destination at least two blocks away
-- **Two scores**: path accuracy (do the directions get there?) and language quality (grammar and vocabulary)
+- **Two scores**: path accuracy (do the directions get there?) and language quality (grammar and vocabulary), each with a plain-English explanation of why
 - **Inline corrections**: mistakes highlighted with the corrected form and an English explanation
+
+All explanation is written in English for an English speaker; the target
+language appears only in the quoted mistakes, the corrections, and the native
+speaker example. Grid indices are never shown - places are named by building.
 - **Animated route trace** replaying the path your directions describe
 - **Native speaker example** showing how the same route would be described naturally
 - **Chinese / Korean toggle**, remembered across visits
@@ -137,6 +141,8 @@ on `openai/gpt-oss-120b` and `openai/gpt-oss-20b`:
 | --- | --- | --- |
 | Describe-only answer | Standing east of 公司 facing north, answer `公司在你的左边。` | High. A correct relative description is a complete answer; a one-step path is not a defect |
 | Intersection geometry | At intersection (0,1) facing north, turn around, one block south, `教室在你的右边。` | High. intersection (r,c) sits between rows r/r+1 AND columns c/c+1 |
+| Arrive-beside | From intersection (1,2) facing west, `往前走。当你看到市场的时候，左转。往前走，然后医院会在你的右边。` | High. Walking to a street that adjoins the destination and naming the correct side IS arriving |
+| Corner bearing | Same case: facing south, the building on the SOUTHWEST corner | Is on your RIGHT. This scored 60 or 100 at random until the prompt carried a bearing-to-side lookup table |
 
 The second one caused wrong feedback naming a building two columns away,
 because the prompt described intersections ambiguously while describing streets

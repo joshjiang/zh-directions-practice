@@ -152,3 +152,17 @@
 .next-button:hover {
   background-color: #1976D2;
 }
+
+/* English explanation of the path score, so a low number is never unexplained. */
+.score-explanation {
+  max-width: 640px;
+  margin: 1.25rem auto 0;
+  padding: 0.9rem 1.1rem;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  color: #333;
+  font-size: 15px;
+  line-height: 1.6;
+  text-align: left;
+}
