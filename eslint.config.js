@@ -8,7 +8,7 @@ export default defineConfig([
   globalIgnores(['dist']),
   {
     // Node entry points: `process`, `console`, etc.
-    files: ['server.js', 'vite.config.js', 'eslint.config.js'],
+    files: ['server.js', 'vite.config.js', 'eslint.config.js', 'lib/**/*.js', 'api/**/*.js'],
     extends: [js.configs.recommended],
     languageOptions: {
       globals: globals.node,
@@ -17,7 +17,7 @@ export default defineConfig([
     },
   },
   {
-    ignores: ['server.js', 'vite.config.js', 'eslint.config.js'],
+    ignores: ['server.js', 'vite.config.js', 'eslint.config.js', 'lib/**/*.js', 'api/**/*.js'],
     files: ['**/*.{js,jsx}'],
     extends: [
       js.configs.recommended,

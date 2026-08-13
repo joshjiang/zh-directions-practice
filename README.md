@@ -18,13 +18,45 @@ speaker example. Grid indices are never shown - places are named by building.
 
 ## Architecture
 
-The Groq API key must never reach the browser, so grading goes through a small Express proxy:
+The Groq API key must never reach the browser, so grading goes through a server-side proxy. The same logic runs in two places:
 
 ```
-browser  ──POST /api/grade──▶  Vite dev proxy  ──▶  server.js (:3001)  ──▶  Groq API
+local:      browser ─POST /api/grade─▶ Vite dev proxy ─▶ server.js (:3001) ─┐
+deployed:   browser ─POST /api/grade─────────────────▶ api/grade.js        ─┴─▶ Groq API
 ```
 
-The client calls a relative `/api/grade`, so the same build works behind any same-origin deployment. Set `VITE_API_BASE_URL` to target a backend on a different host.
+Both call `gradeSubmission()` in [lib/grading.js](lib/grading.js), which knows
+nothing about HTTP. `server.js` and `api/grade.js` are thin adapters, so the
+local and deployed behaviour cannot drift.
+
+The client calls a relative `/api/grade`, so the same build works in both. Set `VITE_API_BASE_URL` to target a backend on a different host.
+
+## Deploying (Vercel free tier)
+
+1. Push this repo to GitHub.
+2. On [vercel.com](https://vercel.com), **Add New → Project**, import the repo.
+   Set the **Root Directory** to `zh-directions-app` if the repo root is the
+   parent folder. Vercel detects Vite and the `api/` functions automatically.
+3. Under **Settings → Environment Variables** add `GROQ_API_KEY` (and
+   optionally `GROQ_REASONING_EFFORT=low`). These stay server-side; never give
+   a secret a `VITE_` prefix.
+4. Deploy.
+
+`vercel.json` sets a 60s function ceiling, comfortably above the few seconds a
+grading takes.
+
+### Sharing it safely
+
+The deployed `/api/grade` is public, and the Groq free tier is metered per day
+across **everyone** using your deployment - a few dozen gradings total. So a
+shared link can exhaust your budget quickly.
+
+[lib/rateLimit.js](lib/rateLimit.js) throttles per IP (default 4/minute,
+40/day), tunable with `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`, and
+`RATE_LIMIT_MAX_PER_DAY`. Note the counters live in memory, so on serverless
+they are per warm instance rather than global: enough to stop one person
+hammering submit, not a determined abuser. For real protection, put the app
+behind an auth check or have each user supply their own Groq key.
 
 ## Setup
 
