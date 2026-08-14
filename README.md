@@ -35,8 +35,8 @@ The client calls a relative `/api/grade`, so the same build works in both. Set `
 
 1. Push this repo to GitHub.
 2. On [vercel.com](https://vercel.com), **Add New → Project**, import the repo.
-   Set the **Root Directory** to `zh-directions-app` if the repo root is the
-   parent folder. Vercel detects Vite and the `api/` functions automatically.
+   `package.json` is at the repo root, so leave **Root Directory** blank.
+   Vercel detects Vite and the `api/` functions automatically.
 3. Under **Settings → Environment Variables** add `GROQ_API_KEY` (and
    optionally `GROQ_REASONING_EFFORT=low`). These stay server-side; never give
    a secret a `VITE_` prefix.
