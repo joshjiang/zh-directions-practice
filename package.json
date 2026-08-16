@@ -10,7 +10,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "npm run dev:all"
+    "start": "npm run dev:all",
+    "test": "node --test \"test/*.test.js\""
   },
   "dependencies": {
     "cors": "^2.8.5",

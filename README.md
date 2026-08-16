@@ -78,7 +78,7 @@ Add your [Groq API key](https://console.groq.com/keys) to `.env`:
 GROQ_API_KEY=your-groq-api-key-here
 ```
 
-Optional overrides: `GROQ_MODEL` (default `openai/gpt-oss-120b`), `GROQ_REASONING_EFFORT`, `GROQ_MAX_TOKENS`, `GROQ_TPM_LIMIT` (your tier's tokens/minute, default 8000), `GROQ_TIMEOUT_MS`, `PORT`.
+Optional overrides: `GROQ_MODEL` (default `openai/gpt-oss-120b`), `GROQ_REASONING_EFFORT`, `GROQ_MAX_TOKENS`, `GROQ_TPM_LIMIT` (your tier's tokens/minute, default 8000), `GROQ_ROUTE_HINT` (`off` disables the computed route), `GROQ_TIMEOUT_MS`, `PORT`.
 
 > **Note:** these are backend-only variables. Never prefix an API key with `VITE_` — Vite inlines `VITE_*` variables into the client bundle, where anyone can read them.
 
@@ -129,6 +129,12 @@ Check the backend with `curl http://localhost:3001/api/health`.
 ```
 server.js                        # Express proxy: validates input, prompts Groq, sanitizes the response
 vite.config.js                   # Dev server + /api proxy
+lib/
+├── grading.js                   # Prompt, Groq call, token budgeting, response shaping
+├── route.js                     # Deterministic shortest route + left/right, handed to the grader
+└── rateLimit.js                 # Per-IP throttling for a shared deployment
+test/
+└── route.test.js                # Exhaustive route checks (npm test)
 src/
 ├── components/
 │   ├── Map.jsx                  # 5×5 grid of buildings, streets, and intersections
@@ -164,6 +170,38 @@ Output lands in `dist/`. The Express server only serves `/api`, so in production
 - **Express** proxy for the grading API
 - **Groq** (`openai/gpt-oss-120b` by default)
 
+### The route is computed, not reasoned about
+
+Left/right relative to a facing is the one thing the grader kept getting wrong:
+it would describe a walk south and then put an eastern building on the walker's
+right. Prompt rules help but do not settle it, because the model redoes the
+arithmetic from scratch on every request.
+
+[lib/route.js](lib/route.js) does that arithmetic in code instead. Doubling
+row/col puts buildings on even lattice coordinates and the streets between them
+on odd ones, so a node is walkable exactly when either coordinate is odd, one
+±1 step is half a block, and "what is beside me" falls out of the coordinates.
+A shortest-path search over (position, facing) - ties broken toward fewer
+turns, since that is the route a person would actually give - yields a route
+whose every left/right is already decided, and the prompt hands the model that
+route to translate rather than to derive. Note you cannot step sideways off a
+north-south street, so the street one block east is four half-steps away, not
+two; straight-line distance is the wrong yardstick here.
+
+`npm test` checks it exhaustively over every street position, destination and
+facing (1,600+ routes): steps stay on the street, no route is longer than a
+plain BFS says it must be, and the side it reports matches an independent
+bearing calculation. Set `GROQ_ROUTE_HINT=off` to grade without it.
+
+Measured on five rounds, A/B on that flag: without the route the grader put
+公园 on the walker's 左手边 when it was on their right - the reported bug -
+and left the side unstated in two others. With it, all five named the correct
+side. One caveat, and it is why `GROQ_REASONING_EFFORT` matters here: at `low`
+the model sometimes still compresses the route and drops a leg (correct side,
+wrong walk). At default effort the same round came back transcribed leg for
+leg. Faithful examples cost roughly twice the completion tokens, which on the
+free tier means fewer submissions per minute.
+
 ### Grading regression cases
 
 Two failure modes are worth re-checking after any prompt change, both verified
@@ -175,6 +213,7 @@ on `openai/gpt-oss-120b` and `openai/gpt-oss-20b`:
 | Intersection geometry | At intersection (0,1) facing north, turn around, one block south, `教室在你的右边。` | High. intersection (r,c) sits between rows r/r+1 AND columns c/c+1 |
 | Arrive-beside | From intersection (1,2) facing west, `往前走。当你看到市场的时候，左转。往前走，然后医院会在你的右边。` | High. Walking to a street that adjoins the destination and naming the correct side IS arriving |
 | Corner bearing | Same case: facing south, the building on the SOUTHWEST corner | Is on your RIGHT. This scored 60 or 100 at random until the prompt carried a bearing-to-side lookup table |
+| Side named in nativeExample | From the street between 教堂 and 图书馆 facing south, destination 公园 | 公园 on your RIGHT. Stating a side in `nativeExample` is where wrong left/right last survived, since the example is prose the model writes rather than a score it justifies |
 
 The second one caused wrong feedback naming a building two columns away,
 because the prompt described intersections ambiguously while describing streets
