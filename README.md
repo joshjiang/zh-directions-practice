@@ -78,7 +78,7 @@ Add your [Groq API key](https://console.groq.com/keys) to `.env`:
 GROQ_API_KEY=your-groq-api-key-here
 ```
 
-Optional overrides: `GROQ_MODEL` (default `openai/gpt-oss-120b`), `GROQ_REASONING_EFFORT`, `GROQ_MAX_TOKENS`, `GROQ_TIMEOUT_MS`, `PORT`.
+Optional overrides: `GROQ_MODEL` (default `openai/gpt-oss-120b`), `GROQ_REASONING_EFFORT`, `GROQ_MAX_TOKENS`, `GROQ_TPM_LIMIT` (your tier's tokens/minute, default 8000), `GROQ_TIMEOUT_MS`, `PORT`.
 
 > **Note:** these are backend-only variables. Never prefix an API key with `VITE_` — Vite inlines `VITE_*` variables into the client bundle, where anyone can read them.
 
@@ -224,13 +224,28 @@ Benchmarking sweeps exhaust it quickly; when it trips, the error names the
 model and the reset time, and switching `GROQ_MODEL` gives you a fresh
 per-model budget.
 
-Note the free tier is capped at **6,000 tokens/minute**. A grading costs about
-1,400 prompt tokens plus completion, so at default reasoning that is roughly
-1.4 submissions per minute and at `low` about 2.2. The server retries once with
-backoff on a 429.
+Note the free tier is capped at **8,000 tokens/minute** for `gpt-oss-120b`. A
+grading costs about 2,000 prompt tokens plus completion, so at default
+reasoning that is roughly 1.5 submissions per minute and at `low` about 2.5.
+The server retries once with backoff on a 429.
 
-Reasoning tokens share the `max_tokens` budget, so if you switch models and
-start seeing truncated responses, raise `GROQ_MAX_TOKENS`.
+That ceiling counts the **reserved** `max_tokens`, not the tokens actually
+generated: a request asking for more than `limit - prompt` is rejected outright
+with a 413 before the model runs. So `max_tokens` cannot be a fixed number -
+the server estimates the prompt size and asks for the largest completion budget
+that still fits under `GROQ_TPM_LIMIT` (default 8,000), never below 3,000. If a
+413 slips through anyway, it retries once using the exact numbers Groq reports.
+
+Two consequences worth knowing:
+
+- On a paid tier, raise `GROQ_TPM_LIMIT` to match it. Otherwise the server
+  keeps rationing against 8,000 and the grader thinks with less room than you
+  are paying for.
+- Reasoning tokens share that budget, so on the free tier the hardest spatial
+  cases can still truncate. `GROQ_REASONING_EFFORT=low` is the cheapest fix
+  (6/6 on the benchmark at less than half the completion tokens); shortening
+  the prompt in `buildPrompt` is the other lever, since every prompt token
+  comes straight out of the thinking budget.
 
 ## License
 
